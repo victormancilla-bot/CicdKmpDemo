@@ -7,7 +7,7 @@ class SharedCommonTest {
 
     @Test
     fun example() {
-        assertEquals(99, 1 + 2)
+        assertEquals(3, 1 + 2)
     }
 
     @Test
