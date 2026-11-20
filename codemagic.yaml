@@ -1,0 +1,37 @@
+workflows:
+  android-cicd-workflow:
+    name: Pipeline CI/CD Android (KMP)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+
+    scripts:
+      - name: Dar permisos de ejecucion a Gradle
+        script: |
+          chmod +x ./gradlew
+
+      - name: Integracion Continua - Ejecutar pruebas unitarias
+        script: |
+          ./gradlew :shared:testAndroidHostTest
+
+      - name: Entrega Continua - Compilar APK de Android
+        script: |
+          ./gradlew :androidApp:assembleDebug
+
+    artifacts:
+      - androidApp/build/outputs/apk/debug/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - victor.mancilla@ucb.edu.bo
+        notify:
+          success: true
+          failure: true
