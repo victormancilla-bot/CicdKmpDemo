@@ -1,8 +1,49 @@
 workflows:
-  android-cicd-workflow:
-    name: Pipeline CI/CD Android (KMP)
+  ci-pull-request:
+    name: CI - Validacion de Pull Request
+    max_build_duration: 20
+    instance_type: mac_mini_m2
+
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: false
+
+    scripts:
+      - name: Dar permisos a Gradle
+        script: |
+          chmod +x ./gradlew
+
+      - name: Ejecutar pruebas unitarias (CI)
+        script: |
+          ./gradlew :shared:testAndroidHostTest
+
+      - name: Quality Gate - Analisis estatico con Android Lint
+        script: |
+          ./gradlew :androidApp:lintDebug
+
+    artifacts:
+      - androidApp/build/reports/lint-results-debug.html
+
+  cd-production-release:
+    name: CD - Produccion Android (Release Firmado)
     max_build_duration: 30
     instance_type: mac_mini_m2
+
+    environment:
+      groups:
+        - android_signing
+
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
 
     triggering:
       events:
@@ -13,20 +54,29 @@ workflows:
           source: true
 
     scripts:
-      - name: Dar permisos de ejecucion a Gradle
+      - name: Dar permisos a Gradle
         script: |
           chmod +x ./gradlew
 
-      - name: Integracion Continua - Ejecutar pruebas unitarias
+      - name: Decodificar Keystore de firma desde secretos
+        script: |
+          echo "$CM_KEYSTORE_BASE64" | base64 -d > $CM_BUILD_DIR/release.jks
+
+      - name: Integracion Continua - Pruebas unitarias
         script: |
           ./gradlew :shared:testAndroidHostTest
 
-      - name: Entrega Continua - Compilar APK de Android
+      - name: Quality Gate - Analisis estatico con Android Lint
         script: |
-          ./gradlew :androidApp:assembleDebug
+          ./gradlew :androidApp:lintDebug
+
+      - name: Entrega Continua - Compilar APK Release Firmado
+        script: |
+          ./gradlew :androidApp:assembleRelease
 
     artifacts:
-      - androidApp/build/outputs/apk/debug/*.apk
+      - androidApp/build/outputs/apk/release/*.apk
+      - androidApp/build/reports/lint-results-debug.html
 
     publishing:
       email:
